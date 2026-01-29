@@ -24,14 +24,7 @@ function createServer() {
         });
         res.end(content);
       });
-    }
-
-    if (url !== '/submit-expense') {
-      res.statusCode = 404;
-      res.end('Invalid url');
-    }
-
-    if (url === '/submit-expense' && method === 'POST') {
+    } else if (url === '/submit-expense' && method === 'POST') {
       let body = '';
 
       req.on('data', (chunk) => {
@@ -41,7 +34,7 @@ function createServer() {
       req.on('end', () => {
         const params = new URLSearchParams(body);
         const newExpense = {
-          data: params.get('date'),
+          date: params.get('date'),
           title: params.get('title'),
           amount: params.get('amount'),
         };
@@ -49,14 +42,21 @@ function createServer() {
         const dbPath = path.join(__dirname, '../db', 'expense.json');
 
         fs.readFile(dbPath, 'utf-8', (err, data) => {
-          if (err) {
-            console.error('FULL ERROR:', err);
-            res.writeHead(500);
+          let expenses = [];
 
-            return res.end('Error reading the database');
+          if (!err && data) {
+            try {
+              const parsedData = JSON.parse(data);
+
+              expenses = Array.isArray(parsedData) ? parsedData : [parsedData];
+            } catch (parseErr) {
+              expenses = [];
+            }
           }
 
-          const jsonToSave = JSON.stringify(newExpense, null, 2);
+          expenses.push(newExpense);
+
+          const jsonToSave = JSON.stringify(expenses, null, 2);
 
           fs.writeFile(dbPath, jsonToSave, (writeErr) => {
             if (writeErr) {
@@ -81,6 +81,9 @@ function createServer() {
           });
         });
       });
+    } else {
+      res.statusCode = 404;
+      res.end('Invalid url');
     }
   });
 }
